@@ -826,7 +826,7 @@ python -m unittest tests.test_server_api -v
 python -m py_compile server.py src/wiki_engine.py scripts/regenerate_hesheng_kb.py
 ```
 
-## 面试讲解重点
+## 重点
 
 这个版本的重点不是数据量大，而是结构清楚：12 个项目、5 类文档、完整双链实体和概念。用户提问后，可以从检索切片和 Prompt 中快速验证答案是否来自知识库，体现企业 RAG 项目的可解释性、可维护性和可评估性。
 """
