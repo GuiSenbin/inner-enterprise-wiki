@@ -1,3 +1,9 @@
+"""
+定位：后端查询引擎层。
+职责：扫描 Raw/Wiki 文档，构建索引与图谱，执行混合检索并生成带证据的回答。
+依赖：本地知识库、FAISS、NetworkX 和 DashScope OpenAI 兼容接口。
+"""
+
 import os
 import re
 import pickle
@@ -13,7 +19,10 @@ import time
 load_dotenv()
 
 class WikiEngine:
+    """企业 Wiki 查询引擎，封装索引构建、混合检索和基于证据的回答生成。"""
+
     def __init__(self):
+        """初始化项目路径、索引路径、模型客户端和运行时索引状态。"""
         # 自动定位当前项目根目录
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
@@ -40,7 +49,7 @@ class WikiEngine:
         self.all_nodes = set()
 
     def get_embeddings(self, texts):
-        """调用通义千问 text-embedding-v3 获取批量向量"""
+        """调用通义千问 text-embedding-v3 获取文本向量，失败时重试后抛出异常。"""
         batch_size = 25
         all_embeddings = []
         
@@ -67,7 +76,7 @@ class WikiEngine:
         return all_embeddings
 
     def split_markdown(self, text, chunk_size=2000, overlap=300):
-        """不足 2000 字作为一个 Chunk 返回，超过则滑动均分"""
+        """按固定窗口切分 Markdown 文本，短文档保持单块，长文档使用重叠窗口。"""
         if len(text) <= chunk_size:
             return [text]
             
@@ -82,7 +91,7 @@ class WikiEngine:
         return chunks
 
     def build_index(self):
-        """构建 FAISS 向量库与 NetworkX 图谱，并持久化到本地"""
+        """扫描 Raw 和 Wiki 文档，构建 FAISS 向量索引与 NetworkX 双链图谱并持久化。"""
         os.makedirs(self.index_save_dir, exist_ok=True)
         
         # 扫描并清理已有文件
@@ -212,7 +221,7 @@ class WikiEngine:
         self.all_nodes = set(graph.nodes)
 
     def load_index(self):
-        """载入本地已持久化的索引"""
+        """载入本地持久化索引，缺失或损坏时返回 False。"""
         if not os.path.exists(self.faiss_path) or not os.path.exists(self.chunks_path) or not os.path.exists(self.graph_path):
             return False
             
@@ -229,7 +238,7 @@ class WikiEngine:
             return False
 
     def extract_terms_from_query(self, query):
-        """从用户 query 中精确匹配出已存在的词条/节点名"""
+        """从用户问题中匹配已存在的 Wiki 图谱节点。"""
         matched_terms = []
         for node in self.all_nodes:
             norm_node = node.lower().replace("_", "/")
@@ -239,14 +248,14 @@ class WikiEngine:
         return matched_terms
 
     def extract_date_from_doc_name(self, doc_name):
-        """从文档名称中提取日期，例如 20240907"""
+        """从文档名称中提取 YYYYMMDD 日期，无法提取时返回默认低值。"""
         match = re.search(r"(\d{8})", doc_name)
         if match:
             return match.group(1)
         return "00000000"
 
     def retrieve(self, query, top_k=5):
-        """图链接与 FAISS 混合检索，并执行加权排序"""
+        """执行 FAISS 语义召回和图谱关联召回，返回重排后的证据切片。"""
         if self.index is None or not self.chunks:
             raise Exception("尚未载入或构建索引！")
 
@@ -339,7 +348,7 @@ class WikiEngine:
         return final_top_chunks, matched_nodes, list(graph_related_docs), embedding_failed
 
     def answer_question(self, query, top_k=5, model="qwen-plus"):
-        """问答流程：检索 -> 组装 Prompt -> 调用通义千问回答"""
+        """基于检索证据组装 Prompt 并调用 LLM，返回答案、来源和降级状态。"""
         # 1. 混合检索
         retrieved_results, matched_nodes, related_docs, embedding_failed = self.retrieve(query, top_k=top_k)
         

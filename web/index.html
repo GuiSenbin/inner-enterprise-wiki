@@ -1,0 +1,120 @@
+<!--
+定位：前端页面结构。
+职责：承载合晟资产内部 Wiki 的查询输入、状态展示、答案区和证据链区域。
+依赖：styles.css、app.js 以及 server.py 暴露的本地 JSON API。
+-->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>合晟资产内部 Wiki</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Hesheng internal wiki</p>
+          <h1>合晟资产内部 Wiki</h1>
+        </div>
+        <div class="model-panel">
+          <label for="model">生成模型</label>
+          <select id="model"></select>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar" aria-label="知识库状态">
+          <section class="status-block">
+            <div class="status-title">
+              <span class="pulse" id="statusPulse"></span>
+              <span id="statusText">正在读取索引</span>
+            </div>
+            <div class="metrics">
+              <div>
+                <strong id="chunkCount">--</strong>
+                <span>文本切片</span>
+              </div>
+              <div>
+                <strong id="nodeCount">--</strong>
+                <span>图谱节点</span>
+              </div>
+            </div>
+            <button id="rebuildBtn" class="secondary-button" type="button">重建本地索引</button>
+            <p class="hint" id="projectDir"></p>
+          </section>
+
+          <section class="prompt-bank">
+            <p class="panel-label">推荐问题</p>
+            <button class="prompt-chip" type="button" data-query="投研数据中台的验收指标有哪些？">简单验证：投研数据中台的验收指标有哪些？</button>
+            <button class="prompt-chip" type="button" data-query="组合风控预警平台使用了哪些技术组件，各自承担什么作用？">中等难度：组合风控预警平台使用了哪些技术组件，各自承担什么作用？</button>
+            <button class="prompt-chip" type="button" data-query="对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。">高难度：对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。</button>
+          </section>
+        </aside>
+
+        <section class="main-panel">
+          <section class="ask-panel">
+            <div>
+              <p class="panel-label">问答检索</p>
+              <h2>用内部文档回答，而不是凭空发挥</h2>
+            </div>
+            <form id="questionForm" class="question-form">
+              <textarea id="query" rows="4" placeholder="输入问题，例如：对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。"></textarea>
+              <button id="askBtn" class="primary-button" type="submit">检索并回答</button>
+            </form>
+          </section>
+
+          <section class="answer-grid">
+            <article class="answer-card">
+              <div class="card-heading">
+                <p class="panel-label">最终回答</p>
+                <span id="usedModel">等待提问</span>
+              </div>
+              <div class="question-readout">
+                <span>当前问题</span>
+                <strong id="activeQuestion">尚未提交问题</strong>
+              </div>
+              <div id="warningList" class="warning-list" aria-live="polite">
+                <span>运行提示</span>
+                <strong>暂无异常提示</strong>
+              </div>
+              <div id="answer" class="answer-body empty">输入问题后，这里会显示基于知识库生成的回答。</div>
+            </article>
+
+            <article class="graph-card">
+              <p class="panel-label">图谱命中</p>
+              <dl>
+                <div>
+                  <dt>关键词</dt>
+                  <dd id="matchedNodes">无</dd>
+                </div>
+                <div>
+                  <dt>关联文档</dt>
+                  <dd id="relatedDocs">无</dd>
+                </div>
+              </dl>
+            </article>
+          </section>
+
+          <section class="evidence-section">
+            <div class="section-heading">
+              <div>
+                <p class="panel-label">Evidence rail</p>
+                <h2>检索证据轨道</h2>
+              </div>
+              <button id="promptToggle" class="ghost-button" type="button">查看 Prompt</button>
+            </div>
+            <pre id="promptView" class="prompt-view" hidden></pre>
+            <div id="evidenceList" class="evidence-list">
+              <div class="empty-state">还没有检索证据。提交一个问题后，Top 5 切片会按综合权重排列在这里。</div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,529 @@
+/*
+定位：前端视觉样式。
+职责：定义合晟资产内部 Wiki 的布局、状态、答案和证据链视觉表现。
+依赖：web/index.html 的语义结构和 web/app.js 渲染出的状态类名。
+*/
+
+:root {
+  --bg: #f4f7fb;
+  --paper: #ffffff;
+  --ink: #172033;
+  --muted: #667085;
+  --line: #d8e0ec;
+  --blue: #2457c5;
+  --blue-soft: #e8efff;
+  --green: #1f8a70;
+  --green-soft: #e7f6f1;
+  --amber: #b7791f;
+  --amber-soft: #fff3da;
+  --shadow: 0 22px 60px rgba(38, 56, 89, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(90deg, rgba(36, 87, 197, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(31, 138, 112, 0.05) 1px, transparent 1px),
+    var(--bg);
+  background-size: 44px 44px;
+  color: var(--ink);
+  font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(36, 87, 197, 0.25);
+  outline-offset: 2px;
+}
+
+.shell {
+  width: min(1440px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+.topbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.eyebrow,
+.panel-label {
+  margin: 0 0 8px;
+  color: var(--blue);
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.12;
+}
+
+h1 {
+  font-family: "Songti SC", "STSong", serif;
+  font-size: clamp(34px, 5vw, 68px);
+  font-weight: 900;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.model-panel {
+  display: grid;
+  gap: 7px;
+  min-width: 260px;
+}
+
+.model-panel label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+select {
+  height: 44px;
+  padding: 0 12px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.sidebar,
+.main-panel {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.status-block,
+.prompt-bank,
+.ask-panel,
+.answer-card,
+.graph-card,
+.evidence-section {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(216, 224, 236, 0.9);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.status-block,
+.prompt-bank {
+  padding: 18px;
+}
+
+.status-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.pulse {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 6px rgba(183, 121, 31, 0.13);
+}
+
+.pulse.ready {
+  background: var(--green);
+  box-shadow: 0 0 0 6px rgba(31, 138, 112, 0.14);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.metrics div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcff;
+}
+
+.metrics strong {
+  display: block;
+  font-size: 28px;
+}
+
+.metrics span,
+.hint,
+dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hint {
+  margin: 12px 0 0;
+  word-break: break-all;
+}
+
+.prompt-bank {
+  display: grid;
+  gap: 10px;
+}
+
+.prompt-chip,
+.secondary-button,
+.ghost-button,
+.primary-button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-weight: 800;
+}
+
+.prompt-chip {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+
+.prompt-chip:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.secondary-button {
+  width: 100%;
+  background: var(--ink);
+  color: white;
+}
+
+.primary-button {
+  background: var(--blue);
+  color: white;
+  box-shadow: 0 14px 28px rgba(36, 87, 197, 0.22);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.ghost-button {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+.ask-panel {
+  display: grid;
+  grid-template-columns: 0.9fr 1.4fr;
+  gap: 22px;
+  padding: 24px;
+}
+
+.question-form {
+  display: grid;
+  gap: 12px;
+}
+
+textarea {
+  min-height: 116px;
+  padding: 14px 16px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.answer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 18px;
+}
+
+.answer-card,
+.graph-card,
+.evidence-section {
+  padding: 22px;
+}
+
+.card-heading,
+.section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+#usedModel {
+  color: var(--muted);
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 12px;
+}
+
+.question-readout,
+.warning-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+}
+
+.question-readout span,
+.warning-list span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.question-readout strong,
+.warning-list strong {
+  line-height: 1.55;
+}
+
+.warning-list.has-warning {
+  background: var(--amber-soft);
+  border-color: rgba(183, 121, 31, 0.35);
+}
+
+.warning-list.has-warning strong {
+  color: #8a4f00;
+}
+
+.answer-body {
+  margin-top: 16px;
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+
+.empty,
+.empty-state {
+  color: var(--muted);
+}
+
+dl {
+  display: grid;
+  gap: 16px;
+  margin: 12px 0 0;
+}
+
+dt {
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+dd {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.prompt-view {
+  max-height: 260px;
+  overflow: auto;
+  margin: 18px 0 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101828;
+  color: #d7e3ff;
+  white-space: pre-wrap;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.evidence-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--blue-soft), #fff 26%);
+  padding: 16px;
+}
+
+.rail-mark {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.rank {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: white;
+  font-family: "Menlo", "Consolas", monospace;
+  font-weight: 900;
+}
+
+.badge {
+  width: fit-content;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.badge.raw {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.badge.concept {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.evidence-body h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.evidence-text {
+  max-height: 180px;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  color: #344054;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(420px, calc(100vw - 48px));
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--ink);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.toast.error {
+  background: #9f1239;
+}
+
+@media (max-width: 960px) {
+  .shell {
+    width: min(100% - 28px, 760px);
+  }
+
+  .topbar,
+  .workspace,
+  .ask-panel,
+  .answer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    display: grid;
+  }
+
+  .model-panel {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .shell {
+    width: min(100% - 20px, 520px);
+    padding-top: 18px;
+  }
+
+  h1 {
+    font-size: 36px;
+  }
+
+  .ask-panel,
+  .answer-card,
+  .graph-card,
+  .evidence-section {
+    padding: 16px;
+  }
+
+  .evidence-item {
+    grid-template-columns: 1fr;
+  }
+
+  .card-heading,
+  .section-heading {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .prompt-chip,
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .evidence-item {
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  .prompt-chip:hover,
+  .evidence-item:hover {
+    transform: translateY(-1px);
+  }
+}
