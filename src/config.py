@@ -12,5 +12,14 @@ ALLOWED_LLM_MODELS = (
     "qwen-long",
     "qwen-max",
 )
+LLM_FALLBACK_MODELS = (
+    "qwen-plus-2025-07-28",
+    "qwen-turbo",
+    "qwen-long",
+    "qwen-max",
+)
+DEFAULT_EMBEDDING_MODEL = "qwen3.7-text-embedding"
+EMBEDDING_DIMENSION = 1024
+EMBEDDING_BATCH_SIZE = 20
 DEFAULT_TOP_K = 5
 MAX_JSON_BODY_BYTES = 64 * 1024

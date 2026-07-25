@@ -15,8 +15,8 @@
     <div class="shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Hesheng internal wiki</p>
-          <h1>合晟资产内部 Wiki</h1>
+          <p class="eyebrow">Compiled LLM Wiki</p>
+          <h1>合晟资产知识编译 Wiki</h1>
         </div>
         <div class="model-panel">
           <label for="model">生成模型</label>
@@ -40,28 +40,35 @@
                 <strong id="nodeCount">--</strong>
                 <span>图谱节点</span>
               </div>
+              <div>
+                <strong id="graphEdgeCount">--</strong>
+                <span>双链关系</span>
+              </div>
+              <div>
+                <strong id="compiledAt">--</strong>
+                <span>编译时间</span>
+              </div>
             </div>
-            <button id="rebuildBtn" class="secondary-button" type="button">重建本地索引</button>
-            <p class="hint" id="projectDir"></p>
+            <button id="rebuildBtn" class="secondary-button" type="button">重新编译知识</button>
           </section>
 
           <section class="prompt-bank">
             <p class="panel-label">推荐问题</p>
-            <button class="prompt-chip" type="button" data-query="投研数据中台的验收指标有哪些？">简单验证：投研数据中台的验收指标有哪些？</button>
-            <button class="prompt-chip" type="button" data-query="组合风控预警平台使用了哪些技术组件，各自承担什么作用？">中等难度：组合风控预警平台使用了哪些技术组件，各自承担什么作用？</button>
-            <button class="prompt-chip" type="button" data-query="对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。">高难度：对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。</button>
+            <button class="prompt-chip" type="button" data-query="哪些系统要求操作留痕率达到 100%">哪些系统要求操作留痕率达到 100%</button>
+            <button class="prompt-chip" type="button" data-query="刘洋 都负责哪些项目？">刘洋 都负责哪些项目？</button>
+            <button class="prompt-chip" type="button" data-query="哪些项目提到了主要风险？">哪些项目提到了主要风险？</button>
           </section>
         </aside>
 
         <section class="main-panel">
           <section class="ask-panel">
             <div>
-              <p class="panel-label">问答检索</p>
-              <h2>用内部文档回答，而不是凭空发挥</h2>
+              <p class="panel-label">Wiki answer</p>
+              <h2>基于已编译 Wiki 证据回答</h2>
             </div>
             <form id="questionForm" class="question-form">
               <textarea id="query" rows="4" placeholder="输入问题，例如：对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。"></textarea>
-              <button id="askBtn" class="primary-button" type="submit">检索并回答</button>
+              <button id="askBtn" class="primary-button" type="submit">基于 Wiki 证据回答</button>
             </form>
           </section>
 
@@ -79,6 +86,16 @@
                 <span>运行提示</span>
                 <strong>暂无异常提示</strong>
               </div>
+              <div class="confidence-card" aria-label="证据置信度">
+                <div>
+                  <span>证据置信度</span>
+                  <strong id="confidenceLabel">等待证据</strong>
+                </div>
+                <div class="confidence-meter" aria-hidden="true">
+                  <div id="confidenceBar"></div>
+                </div>
+                <small id="confidenceScore">--</small>
+              </div>
               <div id="answer" class="answer-body empty">输入问题后，这里会显示基于知识库生成的回答。</div>
             </article>
 
@@ -93,6 +110,18 @@
                   <dt>关联文档</dt>
                   <dd id="relatedDocs">无</dd>
                 </div>
+                <div>
+                  <dt>问题意图</dt>
+                  <dd id="intentType">待识别</dd>
+                </div>
+                <div>
+                  <dt>检索策略</dt>
+                  <dd id="retrievalStrategy">待选择</dd>
+                </div>
+                <div>
+                  <dt>重排依据</dt>
+                  <dd id="rerankExplanation">无</dd>
+                </div>
               </dl>
             </article>
           </section>
@@ -100,14 +129,14 @@
           <section class="evidence-section">
             <div class="section-heading">
               <div>
-                <p class="panel-label">Evidence rail</p>
-                <h2>检索证据轨道</h2>
+                <p class="panel-label">Compiled evidence</p>
+                <h2>已编译 Wiki 证据轨道</h2>
               </div>
               <button id="promptToggle" class="ghost-button" type="button">查看 Prompt</button>
             </div>
             <pre id="promptView" class="prompt-view" hidden></pre>
             <div id="evidenceList" class="evidence-list">
-              <div class="empty-state">还没有检索证据。提交一个问题后，Top 5 切片会按综合权重排列在这里。</div>
+              <div class="empty-state">还没有 Wiki 证据。提交一个问题后，Top 5 知识切片会按综合权重排列在这里。</div>
             </div>
           </section>
         </section>

@@ -85,7 +85,11 @@ class HeshengKnowledgeBaseIntegrityTest(unittest.TestCase):
 
         self.assertIn("原始文档 (Raw) | 60", index_text)
         self.assertIn("12 个内部数字化项目", readme_text)
-        self.assertIn("当前版本 2.0", readme_text)
+        self.assertIn("当前版本 3.0", readme_text)
+        self.assertIn("知识编译型 LLM Wiki", readme_text)
+        self.assertIn("RAG 是底层召回能力，不是产品核心", readme_text)
+        self.assertIn("知识编译层", read_text(PROJECT_ROOT / "docs" / "constitution.md"))
+        self.assertIn("基于已编译 Wiki 证据回答", page_text)
         self.assertNotIn("Streamlit", server_text)
 
     def test_core_entities_and_concepts_are_present(self):
@@ -169,7 +173,3 @@ class HeshengKnowledgeBaseIntegrityTest(unittest.TestCase):
             text = read_text(path)
             metrics = re.findall(r"\| REQ-\d+ \| [^|]+ \| [^|]+ \| P0 \| ([^|]+) \|", text)
             self.assertEqual(len(metrics), len(set(metrics)), path.name)
-
-
-if __name__ == "__main__":
-    unittest.main()

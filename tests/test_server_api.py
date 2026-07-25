@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from src.config import ALLOWED_LLM_MODELS, DEFAULT_LLM_MODEL
+
 
 class FakeEngine:
     """替代真实 WikiEngine，保证 API 测试不依赖外部模型和索引文件。"""
@@ -17,7 +19,8 @@ class FakeEngine:
         self.index = object()
         self.chunks = [{"id": 1}, {"id": 2}]
         self.all_nodes = {"合晟资产", "RAG", "来源引用"}
-        self.project_dir = "/tmp/wiki"
+        self.graph = type("FakeGraph", (), {"number_of_edges": lambda self: 4})()
+        self.compiled_at = "2026-07-22T10:00:00"
         self.build_called = False
         self.last_question = None
 
@@ -31,13 +34,19 @@ class FakeEngine:
         self.chunks.append({"id": 3})
         return None
 
-    def answer_question(self, query, top_k=5, model="qwen-plus"):
+    def answer_question(self, query, top_k=5, model=DEFAULT_LLM_MODEL):
         """返回固定问答结果，验证服务层是否正确传参和透传响应。"""
         self.last_question = (query, top_k, model)
         return {
             "query": query,
             "answer": "答案来自知识库。",
             "prompt": "参考信息",
+            "intent_type": "concept_summary",
+            "retrieval_strategy": "concept_graph_first",
+            "rerank_explanation": ["图谱命中：RAG", "文档类型匹配：技术方案"],
+            "evidence_status": "ok",
+            "confidence_score": 0.86,
+            "confidence_label": "高",
             "matched_nodes": ["RAG"],
             "related_docs": ["合晟资产_知识库智能问答系统_技术方案_20260126"],
             "retrieved_results": [
@@ -119,6 +128,8 @@ class ServerApiTest(unittest.TestCase):
         self.assertTrue(payload["index_loaded"])
         self.assertEqual(2, payload["chunk_count"])
         self.assertEqual(3, payload["node_count"])
+        self.assertEqual(4, payload["graph_edge_count"])
+        self.assertEqual("2026-07-22T10:00:00", payload["compiled_at"])
 
     def test_config_reports_model_choices_from_central_config(self):
         handler = self.make_handler()
@@ -127,9 +138,10 @@ class ServerApiTest(unittest.TestCase):
 
         payload = json.loads(handler.body.decode("utf-8"))
         self.assertEqual(200, handler.status)
-        self.assertEqual("qwen-plus-2025-07-28", payload["default_model"])
-        self.assertIn("qwen-turbo", payload["models"])
-        self.assertEqual(5, payload["top_k"])
+        self.assertEqual(DEFAULT_LLM_MODEL, payload["default_model"])
+        self.assertEqual(list(ALLOWED_LLM_MODELS), payload["models"])
+        self.assertNotIn("top_k", payload)
+        self.assertNotIn("max_json_body_bytes", payload)
 
     def test_answer_requires_non_empty_query(self):
         handler = self.make_handler()
@@ -143,7 +155,8 @@ class ServerApiTest(unittest.TestCase):
 
     def test_answer_delegates_to_engine(self):
         handler = self.make_handler()
-        handler.read_json = lambda: {"query": "知识库智能问答系统为什么适合用 RAG？", "model": "qwen-turbo"}
+        selected_model = ALLOWED_LLM_MODELS[2]
+        handler.read_json = lambda: {"query": "知识库智能问答系统为什么适合用 RAG？", "model": selected_model}
 
         handler.handle_answer()
 
@@ -151,7 +164,13 @@ class ServerApiTest(unittest.TestCase):
         engine = self.state.get_engine()
         self.assertEqual(200, handler.status)
         self.assertEqual("答案来自知识库。", payload["answer"])
-        self.assertEqual(("知识库智能问答系统为什么适合用 RAG？", 5, "qwen-turbo"), engine.last_question)
+        self.assertEqual("concept_summary", payload["intent_type"])
+        self.assertEqual("concept_graph_first", payload["retrieval_strategy"])
+        self.assertEqual("ok", payload["evidence_status"])
+        self.assertEqual(0.86, payload["confidence_score"])
+        self.assertEqual("高", payload["confidence_label"])
+        self.assertEqual(["图谱命中：RAG", "文档类型匹配：技术方案"], payload["rerank_explanation"])
+        self.assertEqual(("知识库智能问答系统为什么适合用 RAG？", 5, selected_model), engine.last_question)
         self.assertEqual("nosniff", handler.response_headers["X-Content-Type-Options"])
 
     def test_static_index_file_is_served(self):
@@ -208,7 +227,3 @@ class ServerApiTest(unittest.TestCase):
         payload = json.loads(handler.body.decode("utf-8"))
         self.assertEqual(400, handler.status)
         self.assertEqual("不支持的模型：unknown-model", payload["error"])
-
-
-if __name__ == "__main__":
-    unittest.main()

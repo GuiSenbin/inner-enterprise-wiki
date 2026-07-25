@@ -35,8 +35,30 @@ class FrontendContractTest(unittest.TestCase):
 
         self.assertIn('id="activeQuestion"', index_text)
         self.assertIn('id="warningList"', index_text)
+        self.assertIn('id="intentType"', index_text)
+        self.assertIn('id="retrievalStrategy"', index_text)
+        self.assertIn('id="rerankExplanation"', index_text)
+        self.assertIn('id="confidenceLabel"', index_text)
         self.assertIn("当前问题", index_text)
         self.assertIn("运行提示", index_text)
+        self.assertIn("证据置信度", index_text)
+        self.assertIn("知识编译", index_text)
+
+    def test_recommended_questions_use_business_questions_without_difficulty_labels(self):
+        index_text = read_web_file("index.html")
+
+        expected_queries = (
+            "哪些系统要求操作留痕率达到 100%",
+            "刘洋 都负责哪些项目？",
+            "哪些项目提到了主要风险？",
+        )
+        for query in expected_queries:
+            self.assertIn(f'data-query="{query}"', index_text)
+            self.assertIn(f">{query}</button>", index_text)
+
+        self.assertNotIn("简单验证：", index_text)
+        self.assertNotIn("中等难度：", index_text)
+        self.assertNotIn("高难度：", index_text)
 
     def test_frontend_loads_models_from_backend_config(self):
         index_text = read_web_file("index.html")
@@ -46,19 +68,25 @@ class FrontendContractTest(unittest.TestCase):
         self.assertIn('requestJson("/api/config")', js_text)
         self.assertIn("renderConfig", js_text)
 
+    def test_frontend_renders_query_route_and_rerank_fields(self):
+        js_text = read_web_file("app.js")
+
+        self.assertIn("payload.intent_type", js_text)
+        self.assertIn("payload.retrieval_strategy", js_text)
+        self.assertIn("payload.rerank_explanation", js_text)
+        self.assertIn("payload.evidence_status", js_text)
+        self.assertIn("payload.confidence_score", js_text)
+        self.assertIn("payload.confidence_label", js_text)
+
     def test_frontend_keeps_retrieval_logic_out_of_page(self):
         js_text = read_web_file("app.js")
 
         forbidden_terms = [
             "faiss",
             "IndexFlatL2",
-            "rerank",
         ]
         lowered = js_text.lower()
         for term in forbidden_terms:
             self.assertNotIn(term.lower(), lowered)
+        self.assertNotIn("function rerank", lowered)
         self.assertIsNone(re.search(r"\b(const|let|var)\s+prompt\s*=", js_text))
-
-
-if __name__ == "__main__":
-    unittest.main()

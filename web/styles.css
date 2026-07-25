@@ -188,16 +188,14 @@ select {
   font-size: 28px;
 }
 
+#compiledAt {
+  font-size: 16px;
+}
+
 .metrics span,
-.hint,
 dt {
   color: var(--muted);
   font-size: 13px;
-}
-
-.hint {
-  margin: 12px 0 0;
-  word-break: break-all;
 }
 
 .prompt-bank {
@@ -298,7 +296,8 @@ textarea {
 }
 
 .question-readout,
-.warning-list {
+.warning-list,
+.confidence-card {
   display: grid;
   gap: 5px;
   margin-top: 14px;
@@ -309,15 +308,56 @@ textarea {
 }
 
 .question-readout span,
-.warning-list span {
+.warning-list span,
+.confidence-card span,
+.confidence-card small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
 }
 
 .question-readout strong,
-.warning-list strong {
+.warning-list strong,
+.confidence-card strong {
   line-height: 1.55;
+}
+
+.confidence-card {
+  grid-template-columns: minmax(120px, 0.45fr) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #f8fafc, #eef6ff);
+}
+
+.confidence-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.confidence-card strong {
+  font-size: 20px;
+}
+
+.confidence-meter {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d9e2f1;
+}
+
+#confidenceBar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+}
+
+#confidenceBar[data-level="medium"] {
+  background: var(--blue);
+}
+
+#confidenceBar[data-level="high"] {
+  background: var(--green);
 }
 
 .warning-list.has-warning {
@@ -510,6 +550,10 @@ dd {
   .card-heading,
   .section-heading {
     display: grid;
+  }
+
+  .confidence-card {
+    grid-template-columns: 1fr;
   }
 }
 

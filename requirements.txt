@@ -3,3 +3,4 @@ python-dotenv
 faiss-cpu
 networkx
 numpy
+langchain-text-splitters

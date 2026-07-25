@@ -4,11 +4,6 @@
 依赖：/api/status、/api/answer、/api/rebuild 和页面 DOM。
 */
 
-const state = {
-  lastPrompt: "",
-  defaultModel: "",
-};
-
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -17,7 +12,8 @@ const els = {
   statusText: $("#statusText"),
   chunkCount: $("#chunkCount"),
   nodeCount: $("#nodeCount"),
-  projectDir: $("#projectDir"),
+  graphEdgeCount: $("#graphEdgeCount"),
+  compiledAt: $("#compiledAt"),
   rebuildBtn: $("#rebuildBtn"),
   form: $("#questionForm"),
   query: $("#query"),
@@ -26,7 +22,13 @@ const els = {
   answer: $("#answer"),
   activeQuestion: $("#activeQuestion"),
   warningList: $("#warningList"),
+  confidenceLabel: $("#confidenceLabel"),
+  confidenceBar: $("#confidenceBar"),
+  confidenceScore: $("#confidenceScore"),
   usedModel: $("#usedModel"),
+  intentType: $("#intentType"),
+  retrievalStrategy: $("#retrievalStrategy"),
+  rerankExplanation: $("#rerankExplanation"),
   matchedNodes: $("#matchedNodes"),
   relatedDocs: $("#relatedDocs"),
   promptToggle: $("#promptToggle"),
@@ -70,10 +72,10 @@ async function requestJson(url, options = {}) {
 
 function renderConfig(payload) {
   // 模型选项来自后端白名单，避免页面和服务端配置各维护一份。
-  state.defaultModel = payload.default_model || "";
+  const defaultModel = payload.default_model || "";
   els.model.innerHTML = (payload.models || [])
     .map((model) => {
-      const selected = model === state.defaultModel ? " selected" : "";
+      const selected = model === defaultModel ? " selected" : "";
       return `<option value="${escapeHtml(model)}"${selected}>${escapeHtml(model)}</option>`;
     })
     .join("");
@@ -84,7 +86,8 @@ function renderStatus(payload) {
   els.statusText.textContent = payload.index_loaded ? "索引已加载" : "索引未构建";
   els.chunkCount.textContent = payload.chunk_count ?? 0;
   els.nodeCount.textContent = payload.node_count ?? 0;
-  els.projectDir.textContent = payload.project_dir ? `数据目录：${payload.project_dir}` : "";
+  els.graphEdgeCount.textContent = payload.graph_edge_count ?? 0;
+  els.compiledAt.textContent = payload.compiled_at ? payload.compiled_at.slice(0, 10) : "--";
 }
 
 async function loadConfig() {
@@ -126,7 +129,11 @@ function renderEvidence(items) {
     .map((item, index) => {
       const chunk = item.chunk || {};
       const category = chunk.category || "entity";
-      const graphText = item.graph_hit ? "图谱命中" : "语义召回";
+      const recallLabels = [];
+      if (item.vector_score > 0) recallLabels.push("语义召回");
+      if (item.keyword_hit) recallLabels.push("BM25关键词");
+      if (item.graph_hit) recallLabels.push("图谱命中");
+      const recallText = recallLabels.length ? recallLabels.join(" / ") : "召回候选";
       return `
         <article class="evidence-item">
           <div class="rail-mark">
@@ -136,13 +143,15 @@ function renderEvidence(items) {
           <div class="evidence-body">
             <h3>${escapeHtml(chunk.doc_name || "未知来源")}</h3>
             <div class="score-row">
-              <span>${graphText}</span>
+              <span>${recallText}</span>
               <span>综合分 ${Number(item.score || 0).toFixed(3)}</span>
               <span>语义分 ${Number(item.vector_score || 0).toFixed(3)}</span>
+              <span>关键词分 ${Number(item.keyword_score || 0).toFixed(3)}</span>
             </div>
             <div class="evidence-text">${escapeHtml(chunk.text || "")}</div>
             <div class="score-row">
               <span>双链：${chunk.mentions && chunk.mentions.length ? escapeHtml(chunk.mentions.join("、")) : "无"}</span>
+              <span>排序依据：${item.rerank_reasons && item.rerank_reasons.length ? escapeHtml(item.rerank_reasons.join("；")) : "语义召回"}</span>
             </div>
           </div>
         </article>
@@ -151,24 +160,38 @@ function renderEvidence(items) {
     .join("");
 }
 
+function renderConfidence(score, label) {
+  const normalized = Math.max(0, Math.min(1, Number(score || 0)));
+  els.confidenceLabel.textContent = label || "未返回";
+  els.confidenceScore.textContent = `分数 ${normalized.toFixed(3)}`;
+  els.confidenceBar.style.width = `${normalized * 100}%`;
+  els.confidenceBar.dataset.level = normalized >= 0.75 ? "high" : normalized >= 0.35 ? "medium" : "low";
+}
+
 function renderAnswer(payload) {
   // 后端返回的是完整问答结果，这里只负责把答案和证据同步到页面。
   els.answer.classList.remove("empty");
   els.activeQuestion.textContent = payload.query || "未返回问题";
   els.answer.textContent = payload.answer || "没有生成回答。";
   els.usedModel.textContent = payload.used_model ? `模型：${payload.used_model}` : "模型未返回";
+  els.intentType.textContent = payload.intent_type || "未识别";
+  els.retrievalStrategy.textContent = payload.retrieval_strategy || "未返回";
+  els.rerankExplanation.innerHTML = renderList(payload.rerank_explanation);
   els.matchedNodes.innerHTML = renderList(payload.matched_nodes);
   els.relatedDocs.innerHTML = renderList(payload.related_docs);
-  state.lastPrompt = payload.prompt || "";
-  els.promptView.textContent = state.lastPrompt;
+  els.promptView.textContent = payload.prompt || "";
+  renderConfidence(payload.confidence_score, payload.confidence_label);
   renderEvidence(payload.retrieved_results);
 
   const warnings = [];
   if (payload.embedding_failed) {
-    warnings.push("向量服务不可用，已降级为本地图谱检索。");
+    warnings.push("向量服务不可用，已使用 BM25 关键词和图谱关系继续检索。");
   }
   if (payload.llm_failed) {
     warnings.push("模型生成失败，页面保留检索证据和 Prompt。");
+  }
+  if (payload.evidence_status && payload.evidence_status !== "ok") {
+    warnings.push(`证据状态：${payload.evidence_status}`);
   }
   if (warnings.length > 0) {
     els.warningList.classList.add("has-warning");
@@ -183,7 +206,7 @@ function renderAnswer(payload) {
 async function answerQuestion(query) {
   // 问答请求期间锁定按钮，避免用户连续提交造成状态交叉。
   els.askBtn.disabled = true;
-  els.askBtn.textContent = "检索中";
+  els.askBtn.textContent = "编译证据中";
   try {
     const payload = await requestJson("/api/answer", {
       method: "POST",
@@ -194,7 +217,7 @@ async function answerQuestion(query) {
     showToast(error.message, true);
   } finally {
     els.askBtn.disabled = false;
-    els.askBtn.textContent = "检索并回答";
+    els.askBtn.textContent = "基于 Wiki 证据回答";
   }
 }
 
@@ -210,16 +233,16 @@ els.form.addEventListener("submit", (event) => {
 
 els.rebuildBtn.addEventListener("click", async () => {
   els.rebuildBtn.disabled = true;
-  els.rebuildBtn.textContent = "正在建库";
+  els.rebuildBtn.textContent = "正在编译";
   try {
     const payload = await requestJson("/api/rebuild", { method: "POST", body: "{}" });
     renderStatus(payload);
-    showToast("索引构建成功。");
+    showToast("知识编译成功。");
   } catch (error) {
     showToast(error.message, true);
   } finally {
     els.rebuildBtn.disabled = false;
-    els.rebuildBtn.textContent = "重建本地索引";
+    els.rebuildBtn.textContent = "重新编译知识";
   }
 });
 

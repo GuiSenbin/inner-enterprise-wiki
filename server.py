@@ -43,11 +43,14 @@ class AppState:
         """返回前端状态栏需要展示的索引加载状态和知识库规模。"""
         engine = self.get_engine()
         index_loaded = engine.index is not None and len(engine.chunks) > 0
+        graph = getattr(engine, "graph", None)
+        graph_edge_count = graph.number_of_edges() if graph is not None and hasattr(graph, "number_of_edges") else 0
         return {
             "index_loaded": index_loaded,
             "chunk_count": len(engine.chunks),
             "node_count": len(engine.all_nodes),
-            "project_dir": str(engine.project_dir),
+            "graph_edge_count": graph_edge_count,
+            "compiled_at": getattr(engine, "compiled_at", None),
         }
 
 
@@ -83,12 +86,10 @@ def create_handler(state):
             self.write_json(state.status_payload())
 
         def handle_config(self):
-            """返回前端需要的模型白名单和检索展示配置。"""
+            """返回前端生成模型选择器需要的白名单配置。"""
             self.write_json({
                 "default_model": DEFAULT_LLM_MODEL,
                 "models": list(ALLOWED_LLM_MODELS),
-                "top_k": DEFAULT_TOP_K,
-                "max_json_body_bytes": MAX_JSON_BODY_BYTES,
             })
 
         def handle_answer(self):
