@@ -150,6 +150,13 @@ class KnowledgeCompilationTest(unittest.TestCase):
         self.assertEqual(DEFAULT_LLM_MODEL, used_model)
         self.assertFalse(llm_failed)
 
+    def test_answer_prompt_requires_conclusion_before_evidence(self):
+        prompt = AnswerService.build_prompt("哪些系统要求操作留痕率达到 100%？", "证据内容")
+
+        self.assertIn("## 结论", prompt)
+        self.assertIn("## 证据依据", prompt)
+        self.assertIn("结论必须放在回答第一部分", prompt)
+
     def test_exact_numeric_fact_evidence_gets_high_confidence(self):
         class FakeChatCompletions:
             def create(self, **kwargs):
@@ -237,6 +244,14 @@ class KnowledgeCompilationTest(unittest.TestCase):
 
         self.assertEqual(QueryIntent.PROJECT_FACT, intent.intent_type)
         self.assertEqual("需求规格说明书", intent.preferred_doc_type)
+
+    def test_query_router_extracts_business_keywords_and_numeric_facts(self):
+        router = QueryRouter(all_nodes=set(), concept_names=set(), entity_names=set())
+
+        intent = router.classify("哪些系统要求操作留痕率达到 100%？")
+
+        self.assertIn("操作留痕率", intent.keywords)
+        self.assertIn("100%", intent.keywords)
 
     def test_query_router_detects_project_risk_question(self):
         router = QueryRouter(all_nodes=set(), concept_names=set(), entity_names=set())

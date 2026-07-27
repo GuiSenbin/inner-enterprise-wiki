@@ -62,12 +62,12 @@
 
         <section class="main-panel">
           <section class="ask-panel">
-            <div>
-              <p class="panel-label">Wiki answer</p>
+            <div class="ask-title">
               <h2>基于已编译 Wiki 证据回答</h2>
+              <span class="question-label">Wiki answer</span>
             </div>
             <form id="questionForm" class="question-form">
-              <textarea id="query" rows="4" placeholder="输入问题，例如：对比客户适当性管理系统和合规审查工作台在权限、审计和监管留痕上的设计差异。"></textarea>
+              <textarea id="query" rows="1" placeholder="请输入问题"></textarea>
               <button id="askBtn" class="primary-button" type="submit">基于 Wiki 证据回答</button>
             </form>
           </section>
@@ -77,14 +77,6 @@
               <div class="card-heading">
                 <p class="panel-label">最终回答</p>
                 <span id="usedModel">等待提问</span>
-              </div>
-              <div class="question-readout">
-                <span>当前问题</span>
-                <strong id="activeQuestion">尚未提交问题</strong>
-              </div>
-              <div id="warningList" class="warning-list" aria-live="polite">
-                <span>运行提示</span>
-                <strong>暂无异常提示</strong>
               </div>
               <div class="confidence-card" aria-label="证据置信度">
                 <div>
@@ -104,11 +96,11 @@
               <dl>
                 <div>
                   <dt>关键词</dt>
-                  <dd id="matchedNodes">无</dd>
+                  <dd id="matchedNodes" class="metadata-tags">无</dd>
                 </div>
                 <div>
                   <dt>关联文档</dt>
-                  <dd id="relatedDocs">无</dd>
+                  <dd id="relatedDocs" class="metadata-tags">无</dd>
                 </div>
                 <div>
                   <dt>问题意图</dt>
@@ -117,10 +109,6 @@
                 <div>
                   <dt>检索策略</dt>
                   <dd id="retrievalStrategy">待选择</dd>
-                </div>
-                <div>
-                  <dt>重排依据</dt>
-                  <dd id="rerankExplanation">无</dd>
                 </div>
               </dl>
             </article>
@@ -144,6 +132,6 @@
     </div>
 
     <div id="toast" class="toast" hidden></div>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260727-summary"></script>
   </body>
 </html>

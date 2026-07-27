@@ -79,6 +79,7 @@ class QueryPlan:
     retrieval_strategy: str
     matched_nodes: list[str] = field(default_factory=list)
     preferred_doc_type: str = ""
+    keywords: list[str] = field(default_factory=list)
 
 
 @dataclass

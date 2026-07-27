@@ -4,6 +4,8 @@
 依赖：models.QueryIntent 和本地图谱节点集合。
 """
 
+import re
+
 from src.models import QueryIntent, QueryPlan
 
 
@@ -19,6 +21,25 @@ class QueryRouter:
     TECH_KEYWORDS = ("技术", "架构", "组件", "接口")
     PLAN_KEYWORDS = ("计划", "负责人", "周期", "预算", "里程碑")
     TEST_KEYWORDS = ("测试", "缺陷", "回归")
+    QUERY_STOPWORDS = (
+        "哪些系统",
+        "哪些项目",
+        "哪些",
+        "哪个",
+        "什么",
+        "怎么",
+        "如何",
+        "是否",
+        "有没有",
+        "项目",
+        "系统",
+        "要求",
+        "达到",
+        "提到",
+        "主要",
+        "都",
+        "负责",
+    )
 
     def __init__(self, all_nodes, concept_names=None, entity_names=None):
         """设置可匹配的 Wiki 节点及节点类型集合。"""
@@ -30,26 +51,27 @@ class QueryRouter:
         """返回问题意图、检索策略、命中节点和文档类型偏好。"""
         matched_nodes = self.match_nodes(query)
         preferred_doc_type = self.preferred_doc_type(query)
+        keywords = self.extract_keywords(query, matched_nodes)
 
         if self.has_any(query, self.COMPARISON_KEYWORDS) and len(matched_nodes) >= 2:
-            return QueryPlan(query, QueryIntent.COMPARISON, "multi_node_hybrid", matched_nodes, preferred_doc_type)
+            return QueryPlan(query, QueryIntent.COMPARISON, "multi_node_hybrid", matched_nodes, preferred_doc_type, keywords)
 
         if self.has_any(query, self.SOURCE_KEYWORDS):
-            return QueryPlan(query, QueryIntent.SOURCE_LOOKUP, "vector_first_source_lookup", matched_nodes, preferred_doc_type)
+            return QueryPlan(query, QueryIntent.SOURCE_LOOKUP, "vector_first_source_lookup", matched_nodes, preferred_doc_type, keywords)
 
         matched_entities = [node for node in matched_nodes if node in self.entity_names]
         matched_concepts = [node for node in matched_nodes if node in self.concept_names]
 
         if matched_entities and self.has_any(query, self.ENTITY_PROFILE_KEYWORDS):
-            return QueryPlan(query, QueryIntent.ENTITY_PROFILE, "entity_graph_first", matched_nodes, preferred_doc_type)
+            return QueryPlan(query, QueryIntent.ENTITY_PROFILE, "entity_graph_first", matched_nodes, preferred_doc_type, keywords)
 
         if preferred_doc_type:
-            return QueryPlan(query, QueryIntent.PROJECT_FACT, "hybrid_with_doc_type_boost", matched_nodes, preferred_doc_type)
+            return QueryPlan(query, QueryIntent.PROJECT_FACT, "hybrid_with_doc_type_boost", matched_nodes, preferred_doc_type, keywords)
 
         if matched_concepts:
-            return QueryPlan(query, QueryIntent.CONCEPT_SUMMARY, "concept_graph_first", matched_nodes, preferred_doc_type)
+            return QueryPlan(query, QueryIntent.CONCEPT_SUMMARY, "concept_graph_first", matched_nodes, preferred_doc_type, keywords)
 
-        return QueryPlan(query, QueryIntent.GENERAL, "vector_with_graph_supplement", matched_nodes, preferred_doc_type)
+        return QueryPlan(query, QueryIntent.GENERAL, "vector_with_graph_supplement", matched_nodes, preferred_doc_type, keywords)
 
     def match_nodes(self, query):
         """从用户问题中匹配已存在的 Wiki 图谱节点。"""
@@ -76,6 +98,26 @@ class QueryRouter:
         if self.has_any(query, self.TEST_KEYWORDS):
             return "系统测试报告"
         return ""
+
+    @classmethod
+    def extract_keywords(cls, query, matched_nodes):
+        """提取图谱节点之外的业务词和数字事实，供页面解释问题重点。"""
+        keywords = list(matched_nodes)
+        normalized = str(query).lower()
+        numbers = re.findall(r"\d+(?:\.\d+)?%?", normalized)
+        keywords.extend(numbers)
+
+        business_text = re.sub(r"\d+(?:\.\d+)?%?", " ", normalized)
+        for stopword in sorted(cls.QUERY_STOPWORDS, key=len, reverse=True):
+            business_text = business_text.replace(stopword, " ")
+        business_terms = re.findall(r"[\u4e00-\u9fff]{2,}", business_text)
+        keywords.extend(business_terms)
+
+        result = []
+        for keyword in keywords:
+            if keyword and keyword not in result:
+                result.append(keyword)
+        return result[:8]
 
     @staticmethod
     def has_any(text, keywords):

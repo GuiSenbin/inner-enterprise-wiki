@@ -192,6 +192,7 @@ class WikiEngine:
             "confidence_score": confidence["score"],
             "confidence_label": confidence["label"],
             "matched_nodes": query_plan.matched_nodes,
+            "keywords": query_plan.keywords,
             "related_docs": related_docs,
             "retrieved_results": [evidence.to_api_dict() for evidence in evidences],
             "used_model": used_model,

@@ -20,21 +20,36 @@ const els = {
   askBtn: $("#askBtn"),
   model: $("#model"),
   answer: $("#answer"),
-  activeQuestion: $("#activeQuestion"),
-  warningList: $("#warningList"),
   confidenceLabel: $("#confidenceLabel"),
   confidenceBar: $("#confidenceBar"),
   confidenceScore: $("#confidenceScore"),
   usedModel: $("#usedModel"),
   intentType: $("#intentType"),
   retrievalStrategy: $("#retrievalStrategy"),
-  rerankExplanation: $("#rerankExplanation"),
   matchedNodes: $("#matchedNodes"),
   relatedDocs: $("#relatedDocs"),
   promptToggle: $("#promptToggle"),
   promptView: $("#promptView"),
   evidenceList: $("#evidenceList"),
   toast: $("#toast"),
+};
+
+const intentLabels = {
+  source_lookup: "原文定位",
+  entity_profile: "实体画像",
+  concept_summary: "概念归纳",
+  comparison: "对比综合",
+  project_fact: "项目事实",
+  general: "普通问答",
+};
+
+const strategyLabels = {
+  vector_first_source_lookup: "向量优先 · 原文定位",
+  entity_graph_first: "实体图谱优先",
+  concept_graph_first: "概念图谱优先",
+  multi_node_hybrid: "多节点混合检索",
+  hybrid_with_doc_type_boost: "混合检索 · 文档类型增强",
+  vector_with_graph_supplement: "向量检索 · 图谱补充",
 };
 
 function escapeHtml(value) {
@@ -90,6 +105,11 @@ function renderStatus(payload) {
   els.compiledAt.textContent = payload.compiled_at ? payload.compiled_at.slice(0, 10) : "--";
 }
 
+function clearQuestionInput() {
+  // 页面刷新或从浏览器缓存返回时，不保留上一次问题，避免误提交旧问题。
+  els.query.value = "";
+}
+
 async function loadConfig() {
   try {
     renderConfig(await requestJson("/api/config"));
@@ -107,15 +127,91 @@ async function loadStatus() {
   }
 }
 
-function renderList(values) {
+function renderList(values, className = "") {
   if (!values || values.length === 0) return "无";
-  return values.map((item) => `<span>${escapeHtml(item)}</span>`).join("、");
+  const classAttribute = className ? ` class="${className}"` : "";
+  return values.map((item) => `<span${classAttribute}>${escapeHtml(item)}</span>`).join("");
+}
+
+function asList(values) {
+  if (Array.isArray(values)) return values.filter(Boolean);
+  if (values === null || values === undefined || values === "") return [];
+  return [values];
+}
+
+function renderCollapsibleList(values, className = "metadata-tag", limit = 3) {
+  const items = asList(values);
+  if (items.length === 0) return "无";
+  const visible = items.slice(0, limit);
+  const hidden = items.slice(limit);
+  const summary = visible.map((item) => `<span class="${className}">${escapeHtml(item)}</span>`).join("");
+  if (hidden.length === 0) return `<div class="metadata-tags">${summary}</div>`;
+  const details = hidden.map((item) => `<span class="${className}">${escapeHtml(item)}</span>`).join("");
+  return `<div class="metadata-detail"><div class="metadata-tags">${summary}</div><details><summary>查看其余 ${hidden.length} 项</summary><div class="metadata-tags">${details}</div></details></div>`;
+}
+
+function renderRetrievalMethods(labels) {
+  if (!labels || labels.length === 0) return '<span class="retrieval-badge neutral">召回候选</span>';
+  return labels.map((label) => `<span class="retrieval-badge">${escapeHtml(label)}</span>`).join("");
 }
 
 function categoryLabel(category) {
   if (category === "raw") return "原始文档";
   if (category === "concept") return "概念词条";
   return "实体词条";
+}
+
+function renderInlineMarkdown(value) {
+  return escapeHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`(.+?)`/g, "<code>$1</code>");
+}
+
+function renderAnswerMarkdown(markdown) {
+  const lines = String(markdown || "")
+    .replace(/\*\*答案依据：\*\*/g, "## 证据依据")
+    .replace(/\*\*答案：\*\*/g, "## 结论")
+    .split(/\r?\n/);
+  const html = [];
+  let inList = false;
+  const closeList = () => {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      closeList();
+      return;
+    }
+    if (/^---+$/.test(trimmed)) {
+      closeList();
+      html.push("<hr>");
+      return;
+    }
+    const heading = trimmed.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      closeList();
+      html.push(`<h3>${renderInlineMarkdown(heading[1])}</h3>`);
+      return;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      html.push(`<li>${renderInlineMarkdown(bullet[1])}</li>`);
+      return;
+    }
+    closeList();
+    html.push(`<p>${renderInlineMarkdown(trimmed)}</p>`);
+  });
+  closeList();
+  return html.join("") || "<p>没有生成回答。</p>";
 }
 
 function renderEvidence(items) {
@@ -131,9 +227,9 @@ function renderEvidence(items) {
       const category = chunk.category || "entity";
       const recallLabels = [];
       if (item.vector_score > 0) recallLabels.push("语义召回");
-      if (item.keyword_hit) recallLabels.push("BM25关键词");
+      if (item.keyword_hit) recallLabels.push("BM25 关键词");
       if (item.graph_hit) recallLabels.push("图谱命中");
-      const recallText = recallLabels.length ? recallLabels.join(" / ") : "召回候选";
+      if (item.direct_match_score > 0.7) recallLabels.unshift("直接事实命中");
       return `
         <article class="evidence-item">
           <div class="rail-mark">
@@ -143,16 +239,17 @@ function renderEvidence(items) {
           <div class="evidence-body">
             <h3>${escapeHtml(chunk.doc_name || "未知来源")}</h3>
             <div class="score-row">
-              <span>${recallText}</span>
+              <div class="retrieval-methods">${renderRetrievalMethods(recallLabels)}</div>
               <span>综合分 ${Number(item.score || 0).toFixed(3)}</span>
               <span>语义分 ${Number(item.vector_score || 0).toFixed(3)}</span>
               <span>关键词分 ${Number(item.keyword_score || 0).toFixed(3)}</span>
             </div>
-            <div class="evidence-text">${escapeHtml(chunk.text || "")}</div>
-            <div class="score-row">
-              <span>双链：${chunk.mentions && chunk.mentions.length ? escapeHtml(chunk.mentions.join("、")) : "无"}</span>
-              <span>排序依据：${item.rerank_reasons && item.rerank_reasons.length ? escapeHtml(item.rerank_reasons.join("；")) : "语义召回"}</span>
-            </div>
+            <details class="evidence-details" open>
+              <summary>查看证据详情</summary>
+              <div class="evidence-text">${escapeHtml(chunk.text || "")}</div>
+              <div class="detail-row"><span>双链</span><strong>${chunk.mentions && chunk.mentions.length ? escapeHtml(chunk.mentions.join("、")) : "无"}</strong></div>
+              <div class="detail-row"><span>排序依据</span><strong>${item.rerank_reasons && item.rerank_reasons.length ? escapeHtml(item.rerank_reasons.join("；")) : "语义召回"}</strong></div>
+            </details>
           </div>
         </article>
       `;
@@ -171,14 +268,12 @@ function renderConfidence(score, label) {
 function renderAnswer(payload) {
   // 后端返回的是完整问答结果，这里只负责把答案和证据同步到页面。
   els.answer.classList.remove("empty");
-  els.activeQuestion.textContent = payload.query || "未返回问题";
-  els.answer.textContent = payload.answer || "没有生成回答。";
+  els.answer.innerHTML = renderAnswerMarkdown(payload.answer);
   els.usedModel.textContent = payload.used_model ? `模型：${payload.used_model}` : "模型未返回";
-  els.intentType.textContent = payload.intent_type || "未识别";
-  els.retrievalStrategy.textContent = payload.retrieval_strategy || "未返回";
-  els.rerankExplanation.innerHTML = renderList(payload.rerank_explanation);
-  els.matchedNodes.innerHTML = renderList(payload.matched_nodes);
-  els.relatedDocs.innerHTML = renderList(payload.related_docs);
+  els.intentType.textContent = intentLabels[payload.intent_type] || payload.intent_type || "未识别";
+  els.retrievalStrategy.textContent = strategyLabels[payload.retrieval_strategy] || payload.retrieval_strategy || "未返回";
+  els.matchedNodes.innerHTML = renderCollapsibleList(payload.keywords || payload.matched_nodes);
+  els.relatedDocs.innerHTML = renderCollapsibleList(payload.related_docs, "metadata-tag document-tag");
   els.promptView.textContent = payload.prompt || "";
   renderConfidence(payload.confidence_score, payload.confidence_label);
   renderEvidence(payload.retrieved_results);
@@ -194,12 +289,7 @@ function renderAnswer(payload) {
     warnings.push(`证据状态：${payload.evidence_status}`);
   }
   if (warnings.length > 0) {
-    els.warningList.classList.add("has-warning");
-    els.warningList.innerHTML = `<span>运行提示</span><strong>${escapeHtml(warnings.join(" "))}</strong>`;
     showToast(warnings.join(" "), payload.llm_failed);
-  } else {
-    els.warningList.classList.remove("has-warning");
-    els.warningList.innerHTML = "<span>运行提示</span><strong>暂无异常提示</strong>";
   }
 }
 
@@ -259,5 +349,7 @@ $$(".prompt-chip").forEach((button) => {
   });
 });
 
+clearQuestionInput();
+window.addEventListener("pageshow", clearQuestionInput);
 loadConfig();
 loadStatus();
