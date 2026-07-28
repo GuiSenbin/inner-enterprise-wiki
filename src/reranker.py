@@ -60,7 +60,30 @@ class LightweightReranker:
             ranked.append(candidate)
 
         ranked.sort(key=lambda item: item.score, reverse=True)
+        if query_plan.dedupe_by_project:
+            ranked = self.dedupe_projects(ranked)
         return ranked[:top_k]
+
+    @classmethod
+    def dedupe_projects(cls, candidates):
+        """宽泛问题按项目保留最强证据，避免同一项目的多类文档重复占位。"""
+        selected = []
+        seen = set()
+        for candidate in candidates:
+            project = cls.project_key(candidate.chunk.doc_name)
+            if project in seen:
+                continue
+            seen.add(project)
+            selected.append(candidate)
+        return selected
+
+    @staticmethod
+    def project_key(doc_name):
+        """从标准 Raw 文档名中提取项目名，用于跨文档去重。"""
+        name = str(doc_name)
+        name = re.sub(r"^合晟资产_", "", name)
+        name = re.sub(r"_(需求规格说明书|技术方案|项目管理计划|系统测试报告|内部验收报告)_\d{8}$", "", name)
+        return name
 
     @classmethod
     def direct_fact_match(cls, query, text):

@@ -165,7 +165,8 @@ class WikiEngine:
         query_plan = self._query_plan(query)
         retriever = HybridRetriever(self.vector_store, self._link_graph(), self.keyword_store)
         candidates, related_docs, embedding_failed = retriever.retrieve(query_plan)
-        ranked = self.reranker.rank(candidates, query_plan, top_k=top_k)
+        evidence_limit = query_plan.evidence_limit if query_plan.result_mode != "top_k" else top_k
+        ranked = self.reranker.rank(candidates, query_plan, top_k=evidence_limit)
 
         return ranked, query_plan, related_docs, embedding_failed
 
@@ -181,12 +182,18 @@ class WikiEngine:
 
         rerank_explanation = self._rerank_explanation(evidences)
 
+        project_sources = related_docs or [evidence.chunk.doc_name for evidence in evidences]
+
         return {
             "query": query,
             "answer": answer,
             "prompt": prompt,
             "intent_type": query_plan.intent_type.value,
             "retrieval_strategy": query_plan.retrieval_strategy,
+            "result_mode": query_plan.result_mode,
+            "candidate_top_k": query_plan.candidate_top_k,
+            "evidence_limit": query_plan.evidence_limit,
+            "total_related_projects": len({self.project_key(doc) for doc in project_sources}),
             "rerank_explanation": rerank_explanation,
             "evidence_status": evidence_status,
             "confidence_score": confidence["score"],
@@ -199,6 +206,14 @@ class WikiEngine:
             "embedding_failed": embedding_failed,
             "llm_failed": llm_failed,
         }
+
+    @staticmethod
+    def project_key(doc_name):
+        """从 Raw 文档名提取项目名，供 API 返回去重后的项目数量。"""
+        import re
+
+        name = re.sub(r"^合晟资产_", "", str(doc_name))
+        return re.sub(r"_(需求规格说明书|技术方案|项目管理计划|系统测试报告|内部验收报告)_\d{8}$", "", name)
 
     def _query_plan(self, query):
         """创建当前问题的轻量意图检索计划。"""

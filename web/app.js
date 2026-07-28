@@ -26,6 +26,7 @@ const els = {
   usedModel: $("#usedModel"),
   intentType: $("#intentType"),
   retrievalStrategy: $("#retrievalStrategy"),
+  resultSummary: $("#resultSummary"),
   matchedNodes: $("#matchedNodes"),
   relatedDocs: $("#relatedDocs"),
   promptToggle: $("#promptToggle"),
@@ -272,6 +273,12 @@ function renderAnswer(payload) {
   els.usedModel.textContent = payload.used_model ? `模型：${payload.used_model}` : "模型未返回";
   els.intentType.textContent = intentLabels[payload.intent_type] || payload.intent_type || "未识别";
   els.retrievalStrategy.textContent = strategyLabels[payload.retrieval_strategy] || payload.retrieval_strategy || "未返回";
+  if (payload.result_mode === "entity_full" || payload.result_mode === "project_full") {
+    const count = Number(payload.total_related_projects || 0);
+    els.resultSummary.textContent = count ? `共找到 ${count} 个项目` : "全量关联项目";
+  } else {
+    els.resultSummary.textContent = `展示 ${Number(payload.evidence_limit || 5)} 条证据`;
+  }
   els.matchedNodes.innerHTML = renderCollapsibleList(payload.keywords || payload.matched_nodes);
   els.relatedDocs.innerHTML = renderCollapsibleList(payload.related_docs, "metadata-tag document-tag");
   els.promptView.textContent = payload.prompt || "";

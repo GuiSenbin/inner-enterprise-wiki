@@ -48,8 +48,10 @@ class FrontendContractTest(unittest.TestCase):
 
         expected_queries = (
             "哪些系统要求操作留痕率达到 100%",
+            "组合风控预警平台的主要风险是什么？",
             "刘洋 都负责哪些项目？",
             "哪些项目提到了主要风险？",
+            "财务预算管理系统内部验收报告，验收范围是什么？",
         )
         for query in expected_queries:
             self.assertIn(f'data-query="{query}"', index_text)
@@ -136,6 +138,7 @@ class FrontendContractTest(unittest.TestCase):
         js_text = read_web_file("app.js")
 
         self.assertIn('id="relatedDocs"', index_text)
+        self.assertIn('id="resultSummary"', index_text)
         self.assertNotIn('id="rerankExplanation"', index_text)
         self.assertIn("renderCollapsibleList", js_text)
         self.assertIn("查看证据详情", js_text)

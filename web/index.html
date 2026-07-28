@@ -54,6 +54,8 @@
 
           <section class="prompt-bank">
             <p class="panel-label">推荐问题</p>
+            <button class="prompt-chip" type="button" data-query="财务预算管理系统内部验收报告，验收范围是什么？">财务预算管理系统内部验收报告，验收范围是什么？</button>
+            <button class="prompt-chip" type="button" data-query="组合风控预警平台的主要风险是什么？">组合风控预警平台的主要风险是什么？</button>
             <button class="prompt-chip" type="button" data-query="哪些系统要求操作留痕率达到 100%">哪些系统要求操作留痕率达到 100%</button>
             <button class="prompt-chip" type="button" data-query="刘洋 都负责哪些项目？">刘洋 都负责哪些项目？</button>
             <button class="prompt-chip" type="button" data-query="哪些项目提到了主要风险？">哪些项目提到了主要风险？</button>
@@ -110,6 +112,10 @@
                   <dt>检索策略</dt>
                   <dd id="retrievalStrategy">待选择</dd>
                 </div>
+                <div>
+                  <dt>结果范围</dt>
+                  <dd id="resultSummary">待计算</dd>
+                </div>
               </dl>
             </article>
           </section>
@@ -124,7 +130,7 @@
             </div>
             <pre id="promptView" class="prompt-view" hidden></pre>
             <div id="evidenceList" class="evidence-list">
-              <div class="empty-state">还没有 Wiki 证据。提交一个问题后，Top 5 知识切片会按综合权重排列在这里。</div>
+              <div class="empty-state">还没有 Wiki 证据。提交问题后，系统会根据问题意图动态整理证据。</div>
             </div>
           </section>
         </section>

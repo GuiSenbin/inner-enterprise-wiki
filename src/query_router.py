@@ -6,6 +6,15 @@
 
 import re
 
+from src.config import (
+    COMPARISON_EVIDENCE_LIMIT,
+    DEFAULT_CANDIDATE_TOP_K,
+    DEFAULT_TOP_K,
+    FULL_CANDIDATE_TOP_K,
+    FULL_EVIDENCE_LIMIT,
+    PRECISE_CANDIDATE_TOP_K,
+    PRECISE_EVIDENCE_LIMIT,
+)
 from src.models import QueryIntent, QueryPlan
 
 
@@ -54,24 +63,42 @@ class QueryRouter:
         keywords = self.extract_keywords(query, matched_nodes)
 
         if self.has_any(query, self.COMPARISON_KEYWORDS) and len(matched_nodes) >= 2:
-            return QueryPlan(query, QueryIntent.COMPARISON, "multi_node_hybrid", matched_nodes, preferred_doc_type, keywords)
+            return self.plan(query, QueryIntent.COMPARISON, "multi_node_hybrid", matched_nodes, preferred_doc_type, keywords, "comparison", FULL_CANDIDATE_TOP_K, COMPARISON_EVIDENCE_LIMIT, True)
 
         if self.has_any(query, self.SOURCE_KEYWORDS):
-            return QueryPlan(query, QueryIntent.SOURCE_LOOKUP, "vector_first_source_lookup", matched_nodes, preferred_doc_type, keywords)
+            return self.plan(query, QueryIntent.SOURCE_LOOKUP, "vector_first_source_lookup", matched_nodes, preferred_doc_type, keywords, "precise", PRECISE_CANDIDATE_TOP_K, PRECISE_EVIDENCE_LIMIT, False)
 
         matched_entities = [node for node in matched_nodes if node in self.entity_names]
         matched_concepts = [node for node in matched_nodes if node in self.concept_names]
 
         if matched_entities and self.has_any(query, self.ENTITY_PROFILE_KEYWORDS):
-            return QueryPlan(query, QueryIntent.ENTITY_PROFILE, "entity_graph_first", matched_nodes, preferred_doc_type, keywords)
+            return self.plan(query, QueryIntent.ENTITY_PROFILE, "entity_graph_first", matched_nodes, preferred_doc_type, keywords, "entity_full", FULL_CANDIDATE_TOP_K, FULL_EVIDENCE_LIMIT, True)
 
         if preferred_doc_type:
-            return QueryPlan(query, QueryIntent.PROJECT_FACT, "hybrid_with_doc_type_boost", matched_nodes, preferred_doc_type, keywords)
+            if matched_nodes:
+                return self.plan(query, QueryIntent.PROJECT_FACT, "hybrid_with_doc_type_boost", matched_nodes, preferred_doc_type, keywords, "precise", PRECISE_CANDIDATE_TOP_K, PRECISE_EVIDENCE_LIMIT, False)
+            return self.plan(query, QueryIntent.PROJECT_FACT, "hybrid_with_doc_type_boost", matched_nodes, preferred_doc_type, keywords, "project_full", FULL_CANDIDATE_TOP_K, FULL_EVIDENCE_LIMIT, True)
 
         if matched_concepts:
-            return QueryPlan(query, QueryIntent.CONCEPT_SUMMARY, "concept_graph_first", matched_nodes, preferred_doc_type, keywords)
+            return self.plan(query, QueryIntent.CONCEPT_SUMMARY, "concept_graph_first", matched_nodes, preferred_doc_type, keywords, "project_full", FULL_CANDIDATE_TOP_K, FULL_EVIDENCE_LIMIT, True)
 
-        return QueryPlan(query, QueryIntent.GENERAL, "vector_with_graph_supplement", matched_nodes, preferred_doc_type, keywords)
+        return self.plan(query, QueryIntent.GENERAL, "vector_with_graph_supplement", matched_nodes, preferred_doc_type, keywords, "top_k", DEFAULT_CANDIDATE_TOP_K, DEFAULT_TOP_K, False)
+
+    @staticmethod
+    def plan(query, intent_type, strategy, matched_nodes, preferred_doc_type, keywords, result_mode, candidate_top_k, evidence_limit, dedupe_by_project):
+        """创建带动态取数策略的查询计划。"""
+        return QueryPlan(
+            query,
+            intent_type,
+            strategy,
+            matched_nodes,
+            preferred_doc_type,
+            keywords,
+            result_mode,
+            candidate_top_k,
+            evidence_limit,
+            dedupe_by_project,
+        )
 
     def match_nodes(self, query):
         """从用户问题中匹配已存在的 Wiki 图谱节点。"""

@@ -80,6 +80,10 @@ class QueryPlan:
     matched_nodes: list[str] = field(default_factory=list)
     preferred_doc_type: str = ""
     keywords: list[str] = field(default_factory=list)
+    result_mode: str = "top_k"
+    candidate_top_k: int = 15
+    evidence_limit: int = 5
+    dedupe_by_project: bool = False
 
 
 @dataclass

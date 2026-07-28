@@ -227,6 +227,29 @@ class KnowledgeCompilationTest(unittest.TestCase):
         self.assertEqual(QueryIntent.ENTITY_PROFILE, intent.intent_type)
         self.assertEqual("entity_graph_first", intent.retrieval_strategy)
         self.assertIn("李娜", intent.matched_nodes)
+        self.assertEqual("entity_full", intent.result_mode)
+        self.assertEqual(50, intent.candidate_top_k)
+        self.assertEqual(50, intent.evidence_limit)
+        self.assertTrue(intent.dedupe_by_project)
+
+    def test_query_router_uses_precise_limit_for_explicit_entity_fact(self):
+        router = QueryRouter(all_nodes={"投研数据中台", "验收"}, concept_names={"验收"}, entity_names={"投研数据中台"})
+
+        intent = router.classify("投研数据中台的验收指标有哪些？")
+
+        self.assertEqual("precise", intent.result_mode)
+        self.assertEqual(10, intent.candidate_top_k)
+        self.assertEqual(2, intent.evidence_limit)
+        self.assertFalse(intent.dedupe_by_project)
+
+    def test_query_router_keeps_top_five_for_general_question(self):
+        router = QueryRouter(all_nodes=set(), concept_names=set(), entity_names=set())
+
+        intent = router.classify("知识库智能问答系统有什么价值？")
+
+        self.assertEqual("top_k", intent.result_mode)
+        self.assertEqual(15, intent.candidate_top_k)
+        self.assertEqual(5, intent.evidence_limit)
 
     def test_query_router_detects_project_acceptance_question(self):
         router = QueryRouter(all_nodes={"投研数据中台", "验收"}, concept_names={"验收"}, entity_names={"投研数据中台"})
@@ -340,3 +363,17 @@ class KnowledgeCompilationTest(unittest.TestCase):
 
         self.assertEqual("项目B", ranked[0].chunk.doc_name)
         self.assertIn("图谱命中", "；".join(ranked[0].rerank_reasons))
+
+    def test_reranker_keeps_one_evidence_per_project_for_entity_full_mode(self):
+        router = QueryRouter(all_nodes={"刘洋"}, concept_names=set(), entity_names={"刘洋"})
+        intent = router.classify("刘洋都负责哪些项目？")
+        candidates = [
+            RetrievalCandidate(DocumentChunk(1, "合晟资产_项目A_技术方案_20250101", "a1.md", "raw", "刘洋负责项目A技术方案", ["刘洋"], "技术方案"), vector_score=0.80, graph_hit=True),
+            RetrievalCandidate(DocumentChunk(2, "合晟资产_项目A_项目管理计划_20250102", "a2.md", "raw", "刘洋负责项目A计划", ["刘洋"], "项目管理计划"), vector_score=0.79, graph_hit=True),
+            RetrievalCandidate(DocumentChunk(3, "合晟资产_项目B_技术方案_20250103", "b1.md", "raw", "刘洋负责项目B", ["刘洋"], "技术方案"), vector_score=0.70, graph_hit=True),
+        ]
+
+        ranked = LightweightReranker().rank(candidates, intent, top_k=intent.evidence_limit)
+
+        self.assertEqual(2, len(ranked))
+        self.assertEqual({"合晟资产_项目A_技术方案_20250101", "合晟资产_项目B_技术方案_20250103"}, {item.chunk.doc_name for item in ranked})

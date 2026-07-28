@@ -32,6 +32,7 @@ class AnswerService:
         if evidence_status != "ok":
             return self.fallback_answer(evidence_status, confidence)
 
+        evidence_limit = query_plan.evidence_limit if query_plan.result_mode != "top_k" else top_k
         evidences = [
             AnswerEvidence(
                 chunk=candidate.chunk,
@@ -43,7 +44,7 @@ class AnswerService:
                 rerank_reasons=candidate.rerank_reasons,
                 direct_match_score=candidate.direct_match_score,
             )
-            for candidate in ranked_candidates[:top_k]
+            for candidate in ranked_candidates[:evidence_limit]
         ]
         context_str = self.build_context(evidences)
         prompt = self.build_prompt(query_plan.query, context_str)

@@ -16,8 +16,9 @@ class HybridRetriever:
         self.link_graph = link_graph
         self.keyword_store = keyword_store
 
-    def retrieve(self, query_plan, vector_top_k=15):
+    def retrieve(self, query_plan, vector_top_k=None):
         """返回候选证据、关联 Raw 文档和向量降级状态。"""
+        vector_top_k = vector_top_k or query_plan.candidate_top_k
         graph_related_docs = self.related_docs(query_plan.matched_nodes)
         candidates_by_id = {}
         embedding_failed = False
